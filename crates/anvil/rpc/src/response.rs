@@ -11,9 +11,9 @@ pub struct RpcResponse {
     // JSON RPC version
     jsonrpc: Version,
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Id>,
+    pub id: Option<Id>,
     #[serde(flatten)]
-    result: ResponseResult,
+    pub result: ResponseResult,
 }
 
 impl From<RpcError> for RpcResponse {
