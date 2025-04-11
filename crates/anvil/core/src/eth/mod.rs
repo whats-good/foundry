@@ -1,11 +1,12 @@
 use crate::{eth::subscription::SubscriptionId, types::ReorgOptions};
+use alloy_dyn_abi::TypedData;
 use alloy_primitives::{Address, Bytes, TxHash, B256, B64, U256};
 use alloy_rpc_types::{
     anvil::{Forking, MineOptions},
     pubsub::{Params as SubscriptionParams, SubscriptionKind},
     request::TransactionRequest,
     simulate::SimulatePayload,
-    state::StateOverride,
+    state::{AccountOverride, StateOverride},
     trace::{
         filter::TraceFilter,
         geth::{GethDebugTracingCallOptions, GethDebugTracingOptions},
@@ -16,6 +17,7 @@ use alloy_serde::WithOtherFields;
 use foundry_common::serde_helpers::{
     deserialize_number, deserialize_number_opt, deserialize_number_seq,
 };
+use std::hash::{Hash, Hasher};
 
 pub mod block;
 pub mod proof;
@@ -668,6 +670,511 @@ pub enum EthPubSub {
 pub enum EthRpcCall {
     Request(Box<EthRequest>),
     PubSub(EthPubSub),
+}
+
+fn hash_block_id<H: Hasher>(block_id: &BlockId, state: &mut H) {
+    match block_id {
+        BlockId::Hash(hash) => hash.block_hash.hash(state),
+        BlockId::Number(number) => number.hash(state),
+    }
+}
+
+fn hash_typed_data<H: Hasher>(typed_data: &TypedData, state: &mut H) {
+    match typed_data.hash_struct() {
+        Ok(bytes) => bytes.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+fn hash_account_override<H: Hasher>(account_override: &AccountOverride, state: &mut H) {
+    match serde_json::to_string(&account_override) {
+        Ok(account_override_str) => account_override_str.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+fn hash_trace_filter<H: Hasher>(trace_filter: &TraceFilter, state: &mut H) {
+    match serde_json::to_string(&trace_filter) {
+        Ok(trace_filter_str) => trace_filter_str.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+fn hash_geth_debug_tracing_options<H: Hasher>(
+    geth_debug_tracing_options: &GethDebugTracingOptions,
+    state: &mut H,
+) {
+    match serde_json::to_string(&geth_debug_tracing_options) {
+        Ok(geth_debug_tracing_options_str) => geth_debug_tracing_options_str.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+fn hash_geth_debug_tracing_call_options<H: Hasher>(
+    geth_debug_tracing_call_options: &GethDebugTracingCallOptions,
+    state: &mut H,
+) {
+    match serde_json::to_string(&geth_debug_tracing_call_options) {
+        Ok(geth_debug_tracing_call_options_str) => geth_debug_tracing_call_options_str.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+fn hash_simulate_payload<H: Hasher>(simulate_payload: &SimulatePayload, state: &mut H) {
+    match serde_json::to_string(&simulate_payload) {
+        Ok(simulate_payload_str) => simulate_payload_str.hash(state),
+        Err(_) => {
+            // TODO: double check this part
+            "error".hash(state);
+        }
+    }
+}
+
+impl Hash for EthRequest {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            EthRequest::Web3ClientVersion(_) => {
+                "web3_clientVersion".hash(state);
+            }
+            EthRequest::Web3Sha3(bytes) => {
+                "web3_sha3".hash(state);
+                bytes.hash(state);
+            }
+            EthRequest::EthChainId(_) => {
+                "eth_chainId".hash(state);
+            }
+            EthRequest::EthNetworkId(_) => {
+                "eth_networkId".hash(state);
+            }
+            EthRequest::NetListening(_) => {
+                "net_listening".hash(state);
+            }
+            EthRequest::EthGasPrice(_) => {
+                "eth_gasPrice".hash(state);
+            }
+            EthRequest::EthMaxPriorityFeePerGas(_) => {
+                "eth_maxPriorityFeePerGas".hash(state);
+            }
+            EthRequest::EthBlobBaseFee(_) => {
+                "eth_blobBaseFee".hash(state);
+            }
+            EthRequest::EthAccounts(_) => {
+                "eth_accounts".hash(state);
+            }
+            EthRequest::EthBlockNumber(_) => {
+                "eth_blockNumber".hash(state);
+            }
+            EthRequest::EthGetBalance(address, block_id) => {
+                "eth_getBalance".hash(state);
+                address.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthGetAccount(address, block_id) => {
+                "eth_getAccount".hash(state);
+                address.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthGetBlockByNumber(block_number_or_tag, _) => {
+                "eth_getBlockByNumber".hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::EthGetTransactionCount(address, block_id) => {
+                "eth_getTransactionCount".hash(state);
+                address.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthGetTransactionCountByHash(fixed_bytes) => {
+                "eth_getTransactionCountByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthGetTransactionCountByNumber(block_number_or_tag) => {
+                "eth_getTransactionCountByNumber".hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::EthGetUnclesCountByNumber(block_number_or_tag) => {
+                "eth_getUnclesCountByNumber".hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::EthGetCodeAt(address, block_id) => {
+                "eth_getCodeAt".hash(state);
+                address.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthGetProof(address, items, block_id) => {
+                "eth_getProof".hash(state);
+                address.hash(state);
+                items.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthSign(address, bytes) => {
+                "eth_sign".hash(state);
+                address.hash(state);
+                bytes.hash(state);
+            }
+            EthRequest::PersonalSign(bytes, address) => {
+                "personal_sign".hash(state);
+                bytes.hash(state);
+                address.hash(state);
+            }
+            EthRequest::EthSignTransaction(_) => {
+                "eth_signTransaction".hash(state);
+            }
+            EthRequest::EthSignTypedData(address, value) => {
+                "eth_signTypedData".hash(state);
+                address.hash(state);
+                value.hash(state);
+            }
+            EthRequest::EthSignTypedDataV3(address, value) => {
+                "eth_signTypedDataV3".hash(state);
+                address.hash(state);
+                value.hash(state);
+            }
+            EthRequest::EthSignTypedDataV4(address, typed_data) => {
+                "eth_signTypedDataV4".hash(state);
+                address.hash(state);
+                hash_typed_data(typed_data, state);
+            }
+            EthRequest::EthSendTransaction(tx) => {
+                "eth_sendTransaction".hash(state);
+                tx.hash(state);
+            }
+            EthRequest::EthSendRawTransaction(bytes) => {
+                "eth_sendRawTransaction".hash(state);
+                bytes.hash(state);
+            }
+            EthRequest::EthCall(_, block_id, hash_map) => {
+                "eth_call".hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+                if let Some(hash_map) = hash_map {
+                    for (key, value) in hash_map {
+                        key.hash(state);
+                        hash_account_override(value, state);
+                    }
+                }
+            }
+            EthRequest::EthSimulateV1(simulate_payload, block_id) => {
+                "eth_simulateV1".hash(state);
+                hash_simulate_payload(simulate_payload, state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthCreateAccessList(_, block_id) => {
+                "eth_createAccessList".hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthEstimateGas(_, block_id, hash_map) => {
+                "eth_estimateGas".hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+                if let Some(hash_map) = hash_map {
+                    for (key, value) in hash_map {
+                        key.hash(state);
+                        hash_account_override(value, state);
+                    }
+                }
+            }
+            EthRequest::EthGetTransactionByHash(fixed_bytes) => {
+                "eth_getTransactionByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthGetTransactionByBlockHashAndIndex(fixed_bytes, index) => {
+                "eth_getTransactionByBlockHashAndIndex".hash(state);
+                fixed_bytes.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetTransactionByBlockNumberAndIndex(block_number_or_tag, index) => {
+                "eth_getTransactionByBlockNumberAndIndex".hash(state);
+                block_number_or_tag.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetRawTransactionByHash(fixed_bytes) => {
+                "eth_getRawTransactionByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthGetRawTransactionByBlockHashAndIndex(fixed_bytes, index) => {
+                "eth_getRawTransactionByBlockHashAndIndex".hash(state);
+                fixed_bytes.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetRawTransactionByBlockNumberAndIndex(block_number_or_tag, index) => {
+                "eth_getRawTransactionByBlockNumberAndIndex".hash(state);
+                block_number_or_tag.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetTransactionReceipt(fixed_bytes) => {
+                "eth_getTransactionReceipt".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthGetBlockReceipts(block_id) => {
+                "eth_getBlockReceipts".hash(state);
+                hash_block_id(block_id, state);
+            }
+            EthRequest::EthGetUncleByBlockHashAndIndex(fixed_bytes, index) => {
+                "eth_getUncleByBlockHashAndIndex".hash(state);
+                fixed_bytes.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetUncleByBlockNumberAndIndex(block_number_or_tag, index) => {
+                "eth_getUncleByBlockNumberAndIndex".hash(state);
+                block_number_or_tag.hash(state);
+                index.hash(state);
+            }
+            EthRequest::EthGetLogs(filter) => {
+                "eth_getLogs".hash(state);
+                filter.hash(state);
+            }
+            EthRequest::EthNewFilter(filter) => {
+                "eth_newFilter".hash(state);
+                filter.hash(state);
+            }
+            EthRequest::EthGetFilterChanges(filter) => {
+                "eth_getFilterChanges".hash(state);
+                filter.hash(state);
+            }
+            EthRequest::EthNewBlockFilter(_) => {
+                "eth_newBlockFilter".hash(state);
+            }
+            EthRequest::EthNewPendingTransactionFilter(_) => {
+                "eth_newPendingTransactionFilter".hash(state);
+            }
+            EthRequest::EthGetFilterLogs(filter) => {
+                "eth_getFilterLogs".hash(state);
+                filter.hash(state);
+            }
+            EthRequest::EthUninstallFilter(filter) => {
+                "eth_uninstallFilter".hash(state);
+                filter.hash(state);
+            }
+            EthRequest::EthGetWork(_) => {
+                "eth_getWork".hash(state);
+            }
+            EthRequest::EthSubmitWork(fixed_bytes, fixed_bytes1, fixed_bytes2) => {
+                "eth_submitWork".hash(state);
+                fixed_bytes.hash(state);
+                fixed_bytes1.hash(state);
+                fixed_bytes2.hash(state);
+            }
+            EthRequest::EthSubmitHashRate(uint, fixed_bytes) => {
+                "eth_submitHashRate".hash(state);
+                uint.hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthFeeHistory(uint, block_number_or_tag, items) => {
+                "eth_feeHistory".hash(state);
+                uint.hash(state);
+                block_number_or_tag.hash(state);
+                for item in items {
+                    item.to_bits().hash(state);
+                }
+            }
+            EthRequest::EthSyncing(_) => {
+                "eth_syncing".hash(state);
+            }
+            EthRequest::DebugGetRawTransaction(fixed_bytes) => {
+                "debug_getRawTransaction".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::TraceTransaction(fixed_bytes) => {
+                "trace_transaction".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::TraceBlock(block_number_or_tag) => {
+                "trace_block".hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::TraceFilter(trace_filter) => {
+                "trace_filter".hash(state);
+                hash_trace_filter(trace_filter, state);
+            }
+            EthRequest::DebugTraceTransaction(fixed_bytes, geth_debug_tracing_options) => {
+                "debug_traceTransaction".hash(state);
+                fixed_bytes.hash(state);
+                hash_geth_debug_tracing_options(geth_debug_tracing_options, state);
+            }
+            EthRequest::DebugTraceCall(_, block_id, geth_debug_tracing_call_options) => {
+                "debug_traceCall".hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+                hash_geth_debug_tracing_call_options(geth_debug_tracing_call_options, state);
+            }
+
+            EthRequest::EthGetStorageAt(address, uint, block_id) => {
+                "eth_getStorageAt".hash(state);
+                address.hash(state);
+                uint.hash(state);
+                if let Some(block_id) = block_id {
+                    hash_block_id(block_id, state);
+                }
+            }
+            EthRequest::EthGetBlockByHash(fixed_bytes, _) => {
+                "eth_getBlockByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthGetUnclesCountByHash(fixed_bytes) => {
+                "eth_getUnclesCountByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::EthSendUnsignedTransaction(tx) => {
+                "eth_sendUnsignedTransaction".hash(state);
+                tx.hash(state);
+            }
+            EthRequest::TxPoolStatus(_) => {
+                "txpool_status".hash(state);
+            }
+            EthRequest::TxPoolInspect(_) => {
+                "txpool_inspect".hash(state);
+            }
+            EthRequest::TxPoolContent(_) => {
+                "txpool_content".hash(state);
+            }
+            EthRequest::ErigonGetHeaderByNumber(block_number_or_tag) => {
+                block_number_or_tag.hash(state);
+            }
+
+            // ***** OTS *****
+            EthRequest::OtsGetApiLevel(_) => {
+                "ots_getApiLevel".hash(state);
+            }
+            EthRequest::OtsGetInternalOperations(fixed_bytes) => {
+                "ots_getInternalOperations".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::OtsHasCode(address, block_number_or_tag) => {
+                "ots_hasCode".hash(state);
+                address.hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::OtsTraceTransaction(fixed_bytes) => {
+                "ots_traceTransaction".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::OtsGetTransactionError(fixed_bytes) => {
+                "ots_getTransactionError".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::OtsGetBlockDetails(block_number_or_tag) => {
+                "ots_getBlockDetails".hash(state);
+                block_number_or_tag.hash(state);
+            }
+            EthRequest::OtsGetBlockDetailsByHash(fixed_bytes) => {
+                "ots_getBlockDetailsByHash".hash(state);
+                fixed_bytes.hash(state);
+            }
+            EthRequest::OtsGetBlockTransactions(block_number_or_tag, page, page_size) => {
+                "ots_getBlockTransactions".hash(state);
+                block_number_or_tag.hash(state);
+                page.hash(state);
+                page_size.hash(state);
+            }
+            EthRequest::OtsSearchTransactionsBefore(address, block_number_or_tag, page) => {
+                "ots_searchTransactionsBefore".hash(state);
+                address.hash(state);
+                block_number_or_tag.hash(state);
+                page.hash(state);
+            }
+            EthRequest::OtsSearchTransactionsAfter(address, block_number_or_tag, page) => {
+                "ots_searchTransactionsAfter".hash(state);
+                address.hash(state);
+                block_number_or_tag.hash(state);
+                page.hash(state);
+            }
+            EthRequest::OtsGetTransactionBySenderAndNonce(address, uint) => {
+                "ots_getTransactionBySenderAndNonce".hash(state);
+                address.hash(state);
+                uint.hash(state);
+            }
+            EthRequest::OtsGetContractCreator(address) => {
+                "ots_getContractCreator".hash(state);
+                address.hash(state);
+            }
+
+            // ***** EXOTIC *****
+            EthRequest::EvmMine(_) => {
+                // no need to hash
+            }
+
+            // ***** ANVIL *****
+            EthRequest::ImpersonateAccount(_)
+            | EthRequest::StopImpersonatingAccount(_)
+            | EthRequest::AutoImpersonateAccount(_)
+            | EthRequest::GetAutoMine(_)
+            | EthRequest::Mine(_, _)
+            | EthRequest::SetAutomine(_)
+            | EthRequest::SetIntervalMining(_)
+            | EthRequest::GetIntervalMining(_)
+            | EthRequest::DropTransaction(_)
+            | EthRequest::DropAllTransactions()
+            | EthRequest::Reset(_)
+            | EthRequest::SetRpcUrl(_)
+            | EthRequest::SetBalance(_, _)
+            | EthRequest::SetCode(_, _)
+            | EthRequest::SetNonce(_, _)
+            | EthRequest::SetStorageAt(_, _, _)
+            | EthRequest::SetCoinbase(_)
+            | EthRequest::SetChainId(_)
+            | EthRequest::SetLogging(_)
+            | EthRequest::SetMinGasPrice(_)
+            | EthRequest::SetNextBlockBaseFeePerGas(_)
+            | EthRequest::DumpState(_)
+            | EthRequest::LoadState(_)
+            | EthRequest::NodeInfo(_)
+            | EthRequest::AnvilMetadata(_)
+            | EthRequest::EvmSnapshot(_)
+            | EthRequest::EvmRevert(_)
+            | EthRequest::EvmIncreaseTime(_)
+            | EthRequest::EvmSetNextBlockTimeStamp(_)
+            | EthRequest::EvmSetBlockGasLimit(_)
+            | EthRequest::EvmSetBlockTimeStampInterval(_)
+            | EthRequest::EvmRemoveBlockTimeStampInterval(_)
+            | EthRequest::EvmMineDetailed(_)
+            | EthRequest::EnableTraces(_)
+            | EthRequest::RemovePoolTransactions(_)
+            | EthRequest::Reorg(_)
+            | EthRequest::Rollback(_)
+            | EthRequest::AnvilAddCapability(_)
+            | EthRequest::EvmSetTime(_)
+            | EthRequest::AnvilSetExecutor(_) => {
+                // these are anvil specific requests, no need to hash
+            }
+
+            // ***** Wallet *****
+            EthRequest::WalletGetCapabilities(_) | EthRequest::WalletSendTransaction(_) => {
+                // no need to hash
+            }
+        }
+    }
 }
 
 #[cfg(test)]
