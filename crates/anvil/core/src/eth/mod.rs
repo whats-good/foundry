@@ -30,14 +30,14 @@ pub mod serde_helpers;
 use self::serde_helpers::*;
 
 /// Wrapper type that ensures the type is named `params`
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Params<T: Default> {
     #[serde(default)]
     pub params: T,
 }
 
 /// Represents ethereum JSON-RPC API
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method", content = "params")]
 #[expect(clippy::large_enum_variant)]
 pub enum EthRequest {
@@ -349,7 +349,7 @@ pub enum EthRequest {
         alias = "hardhat_dropAllTransactions",
         with = "empty_params"
     )]
-    DropAllTransactions(),
+    DropAllTransactions(()),
 
     /// Reset the fork to a fresh forked state, and optionally update the fork config
     #[serde(rename = "anvil_reset", alias = "hardhat_reset")]
@@ -1135,7 +1135,7 @@ impl Hash for EthRequest {
             | EthRequest::SetIntervalMining(_)
             | EthRequest::GetIntervalMining(_)
             | EthRequest::DropTransaction(_)
-            | EthRequest::DropAllTransactions()
+            | EthRequest::DropAllTransactions(_)
             | EthRequest::Reset(_)
             | EthRequest::SetRpcUrl(_)
             | EthRequest::SetBalance(_, _)

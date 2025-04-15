@@ -25,7 +25,7 @@ pub mod sequence {
             return Err(serde::de::Error::custom(format!(
                 "expected params sequence with length 1 but got {}",
                 seq.len()
-            )))
+            )));
         }
         Ok(seq.remove(0))
     }
@@ -33,7 +33,7 @@ pub mod sequence {
 
 /// A module that deserializes `[]` optionally
 pub mod empty_params {
-    use serde::{Deserialize, Deserializer};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     pub fn deserialize<'de, D>(d: D) -> Result<(), D::Error>
     where
@@ -44,9 +44,17 @@ pub mod empty_params {
             return Err(serde::de::Error::custom(format!(
                 "expected params sequence with length 0 but got {}",
                 seq.len()
-            )))
+            )));
         }
         Ok(())
+    }
+
+    pub fn serialize<S, T>(_val: &T, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        s.serialize_unit()
     }
 }
 

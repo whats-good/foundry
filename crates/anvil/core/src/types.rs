@@ -27,7 +27,7 @@ impl Serialize for Work {
 }
 
 /// Represents the options used in `anvil_reorg`
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReorgOptions {
     // The depth of the reorg
     pub depth: u64,
@@ -35,7 +35,7 @@ pub struct ReorgOptions {
     pub tx_block_pairs: Vec<(TransactionData, u64)>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[expect(clippy::large_enum_variant)]
 pub enum TransactionData {
